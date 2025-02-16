@@ -46,13 +46,13 @@ int main() {
         
     while (1) {
         char buffer[1024];
-        int recive_data_len = recv(client_file_descriptor, buffer, sizeof(buffer), 0);
+        int receive_data_len = recv(client_file_descriptor, buffer, sizeof(buffer), 0);
 
-        if (recive_data_len > 0) {
+        if (receive_data_len > 0) {
             printf("client say: %s\n", buffer);
 
-            send(client_file_descriptor, buffer, recive_data_len, 0);
-        } else if (recive_data_len == 0) {
+            send(client_file_descriptor, buffer, receive_data_len, 0);
+        } else if (receive_data_len == 0) {
             printf("client disconnected...\n");
             break;
         } else {
