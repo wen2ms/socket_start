@@ -1,17 +1,26 @@
 #include <arpa/inet.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
+
+#include "thread_pool.h"
 
 struct SocketInfo {
     struct sockaddr_in client_address;
     int client_file_descriptor;
 };
 
+struct AcceptInfo {
+    ThreadPool* thread_pool;
+    int server_file_descriptor;
+};
+
 struct SocketInfo socket_infos[512];
 
-void* worker(void* arg);
+void worker(void* arg);
+void accept_connection(void* arg);
 
 int main() {
     int file_descriptor = socket(AF_INET, SOCK_STREAM, 0);
@@ -43,25 +52,38 @@ int main() {
 
     int socket_infos_max = sizeof(socket_infos) / sizeof(socket_infos[0]);
 
-    for (int i = 0; i <socket_infos_max; ++i) {
+    for (int i = 0; i < socket_infos_max; ++i) {
         bzero(&socket_infos[i], sizeof(socket_infos[i]));
 
         socket_infos[i].client_file_descriptor = -1;
     }
+
+    ThreadPool* thread_pool = thread_pool_create(3, 8, 100);
+
+    struct AcceptInfo* accept_info = (struct AcceptInfo*)malloc(sizeof(struct AcceptInfo));
+
+    accept_info->thread_pool = thread_pool;
+    accept_info->server_file_descriptor = file_descriptor;
+
+    thread_pool_add_task(thread_pool, accept_connection, accept_info);
+
+    pthread_exit(NULL);
+
+    return 0;
+}
+
+void accept_connection(void* arg) {
+    struct AcceptInfo* accept_info = (struct AcceptInfo*)arg;
 
     unsigned int client_address_len = sizeof(struct sockaddr);
 
     while (1) {
         struct SocketInfo* p_info;
 
-        for (int i = 0; i < socket_infos_max; ++i) {
-            if (socket_infos[i].client_file_descriptor == -1) {
-                p_info = &socket_infos[i];
-                break;
-            }
-        }
+        p_info = (struct SocketInfo*)malloc(sizeof(struct SocketInfo));
 
-        int client_file_descriptor = accept(file_descriptor, (struct sockaddr*)&p_info->client_address, &client_address_len);
+        int client_file_descriptor =
+            accept(accept_info->server_file_descriptor, (struct sockaddr*)&p_info->client_address, &client_address_len);
         p_info->client_file_descriptor = client_file_descriptor;
 
         if (client_file_descriptor == -1) {
@@ -69,19 +91,13 @@ int main() {
             break;
         }
 
-        pthread_t tid;
-
-        pthread_create(&tid, NULL, worker, p_info);
-        
-        pthread_detach(tid);
+        thread_pool_add_task(accept_info->thread_pool, worker, p_info);
     }
 
-    close(file_descriptor);
-
-    return 0;
+    close(accept_info->server_file_descriptor);
 }
 
-void* worker(void* arg) {
+void worker(void* arg) {
     printf("worker id=%p...\n", pthread_self());
 
     struct SocketInfo* p_info = (struct SocketInfo*)arg;
@@ -109,6 +125,4 @@ void* worker(void* arg) {
 
     close(p_info->client_file_descriptor);
     p_info->client_file_descriptor = -1;
-
-    return NULL;
 }
