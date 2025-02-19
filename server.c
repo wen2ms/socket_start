@@ -17,9 +17,7 @@ struct AcceptInfo {
     int server_file_descriptor;
 };
 
-struct SocketInfo socket_infos[512];
-
-void worker(void* arg);
+void server_worker(void* arg);
 void accept_connection(void* arg);
 
 int main() {
@@ -48,14 +46,6 @@ int main() {
     if (ret == -1) {
         perror("listen");
         return -1;
-    }
-
-    int socket_infos_max = sizeof(socket_infos) / sizeof(socket_infos[0]);
-
-    for (int i = 0; i < socket_infos_max; ++i) {
-        bzero(&socket_infos[i], sizeof(socket_infos[i]));
-
-        socket_infos[i].client_file_descriptor = -1;
     }
 
     ThreadPool* thread_pool = thread_pool_create(3, 8, 100);
@@ -91,14 +81,14 @@ void accept_connection(void* arg) {
             break;
         }
 
-        thread_pool_add_task(accept_info->thread_pool, worker, p_info);
+        thread_pool_add_task(accept_info->thread_pool, server_worker, p_info);
     }
 
     close(accept_info->server_file_descriptor);
 }
 
-void worker(void* arg) {
-    printf("worker id=%p...\n", pthread_self());
+void server_worker(void* arg) {
+    printf("server_worker id=%p...\n", pthread_self());
 
     struct SocketInfo* p_info = (struct SocketInfo*)arg;
 
@@ -124,5 +114,4 @@ void worker(void* arg) {
     }
 
     close(p_info->client_file_descriptor);
-    p_info->client_file_descriptor = -1;
 }
