@@ -197,7 +197,7 @@ void* manager(void* arg) {
 
         pthread_mutex_unlock(&thread_pool->mutex_busy);
 
-        if (queue_size > alive_num && alive_num < thread_pool->max_num) {
+        if (queue_size > alive_num - busy_num && alive_num < thread_pool->max_num) {
             pthread_mutex_lock(&thread_pool->mutex_pool);
 
             int counter = 0;
