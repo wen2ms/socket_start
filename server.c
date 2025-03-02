@@ -65,7 +65,7 @@ int main() {
 void accept_connection(void* arg) {
     struct AcceptInfo* accept_info = (struct AcceptInfo*)arg;
 
-    unsigned int client_address_len = sizeof(struct sockaddr);
+    unsigned int client_address_len = sizeof(struct sockaddr_in);
 
     while (1) {
         struct SocketInfo* p_info;
